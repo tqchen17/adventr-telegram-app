@@ -3,141 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Adventr Player</title>
+    <title>URL Diagnostic Tool</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body, html {
             margin: 0;
-            padding: 0;
+            padding: 20px;
+            box-sizing: border-box;
             width: 100%;
             height: 100%;
-            overflow: hidden;
-            background-color: #000;
+            overflow: auto;
+            background-color: #222;
             color: #fff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: monospace;
+            font-size: 14px;
         }
-        #adventr-wrapper {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        /* --- Styles for the new, dismissible prompt --- */
-        #rotate-prompt {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
-            display: none; /* Hidden by default */
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            z-index: 100;
-            flex-direction: column;
-        }
-        #rotate-prompt svg {
-            width: 60px;
-            height: 60px;
+        div {
             margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            word-break: break-all;
         }
-        /* The new close button */
-        #close-prompt {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            font-size: 30px;
-            line-height: 1;
-            cursor: pointer;
-            color: #aaa;
-            transition: color 0.2s;
+        h2 {
+            margin-top: 0;
+            border-bottom: 1px solid #555;
+            padding-bottom: 5px;
         }
-        #close-prompt:hover {
-            color: #fff;
-        }
+        .original { background-color: #442b2b; }
+        .cleaned { background-color: #2b442b; }
+        .info { background-color: #2b3a44; }
     </style>
 </head>
 <body>
 
-    <!-- Updated prompt with a close button -->
-    <div id="rotate-prompt">
-        <div id="close-prompt">&times;</div>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white">
-            <path d="M18.5,6.5H15.5a1,1,0,0,0,0,2H17v1a1,1,0,0,0,2,0V8.5A2,2,0,0,0,17.5,6.5Zm-13,11H8.5a1,1,0,0,0,0-2H7v-1a1,1,0,0,0-2,0v1.5A2,2,0,0,0,6.5,19.5ZM7.88,8.12a1,1,0,0,0-1.41,0L2.29,12.29a1,1,0,0,0,1.41,1.41L7.88,9.54A1,1,0,0,0,7.88,8.12Zm8.24,8.24,4.18-4.17a1,1,0,0,0-1.41-1.41L14.69,15.05a1,1,0,0,0,1.41,1.42Z"/>
-        </svg>
-        For the best experience,<br>please rotate your device.
+    <h1>URL Cleaning Diagnostic</h1>
+    <p>This page shows the data received from Telegram and the "cleaned" URL that the player would try to load.</p>
+
+    <div id="original-url" class="original">
+        <h2>Original URL Received</h2>
+        <p>Loading...</p>
     </div>
 
-    <div id="adventr-wrapper">
-      <div style="padding-bottom: 56.25%; position: relative; height: 0; overflow: hidden; max-width: 100%; width:100%">
-        <iframe id="adventr-player" src="" frameborder="0" scrolling="no" referrerpolicy="origin" allowfullscreen allow="autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; geolocation; microphone; web-share" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
-      </div>
+    <div id="start-param" class="info">
+        <h2>Data from `start_param`</h2>
+        <p>Loading...</p>
+    </div>
+
+    <div id="hash-param" class="info">
+        <h2>Data from URL Hash (#)</h2>
+        <p>Loading...</p>
+    </div>
+
+    <div id="cleaned-url" class="cleaned">
+        <h2>Final Cleaned URL</h2>
+        <p>Loading...</p>
     </div>
 
     <script>
-        // --- CONFIGURATION ---
-        const baseAdventrUrl = "https://qa-player.adventr.me/stable/index.html?link=";
-        const defaultVideoId = "5701"; // Fallback video if none is provided
-
-        // We wrap our main logic in a function to call it when ready
-        function initializeApp() {
+        document.addEventListener("DOMContentLoaded", () => {
             try {
-                // Ensure the Telegram Web App object is available
-                if (window.Telegram && window.Telegram.WebApp) {
-                    const tg = window.Telegram.WebApp;
-                    tg.ready();
-                    tg.expand();
+                // --- CONFIGURATION ---
+                const baseAdventrUrl = "https://qa-player.adventr.me/stable/index.html?link=";
+                const defaultVideoId = "5729"; // A known working ID
+
+                // --- Display Original URL ---
+                document.querySelector("#original-url p").textContent = window.location.href;
+
+                // --- Initialize Telegram ---
+                const tg = window.Telegram.WebApp;
+                tg.ready();
+                tg.expand();
+
+                // --- Method 1: Check start_param ---
+                const startParamDiv = document.querySelector("#start-param p");
+                if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+                    startParamDiv.textContent = `SUCCESS: Found start_param with value: "${tg.initDataUnsafe.start_param}"`;
+                } else {
+                    startParamDiv.textContent = "FAILURE: No start_param data was found.";
                 }
-                
-                // --- DYNAMIC VIDEO LOGIC (URL HASH METHOD) ---
+
+                // --- Method 2: Check URL Hash ---
+                const hashParamDiv = document.querySelector("#hash-param p");
                 let videoId = defaultVideoId;
-                // Check the URL for a hash (#) and extract the ID
                 if (window.location.hash && window.location.hash.length > 1) {
-                    // .substring(1) removes the '#' character
                     const hashId = window.location.hash.substring(1);
-                    // Ensure the extracted ID is not empty
-                    if (hashId) {
-                        videoId = hashId;
-                    }
+                    hashParamDiv.textContent = `SUCCESS: Found hash with value: "${hashId}"`;
+                    videoId = hashId; // Use the hash ID if it exists
+                } else {
+                    hashParamDiv.textContent = "INFO: No hash found in the URL. Using default ID.";
                 }
 
+                // --- Construct and Display Cleaned URL ---
                 const finalAdventrUrl = `${baseAdventrUrl}${videoId}&custom-score=0`;
-                const playerIframe = document.getElementById('adventr-player');
-                if (playerIframe) {
-                    playerIframe.src = finalAdventrUrl;
-                }
+                document.querySelector("#cleaned-url p").textContent = finalAdventrUrl;
 
-                // --- ROTATION PROMPT LOGIC (Now dismissible) ---
-                const prompt = document.getElementById('rotate-prompt');
-                const closeButton = document.getElementById('close-prompt');
-                
-                const handleOrientationChange = (e) => {
-                    // Only show the prompt if it hasn't been closed this session
-                    if (e.matches && prompt.style.display !== 'closed') {
-                        prompt.style.display = 'flex'; // Portrait
-                    } else {
-                        prompt.style.display = 'none'; // Landscape
-                    }
-                };
-
-                closeButton.addEventListener('click', () => {
-                    prompt.style.display = 'none';
-                });
-
-                const orientationQuery = window.matchMedia("(orientation: portrait)");
-                handleOrientationChange(orientationQuery);
-                orientationQuery.addEventListener('change', handleOrientationChange);
-
-            } catch (error) {
-                console.error("An error occurred during app initialization:", error);
+            } catch (e) {
+                document.body.innerHTML = `<h1 style="color:red;">A critical error occurred: ${e.message}</h1>`;
             }
-        }
-
-        // Wait for the DOM to be fully loaded before running the app logic
-        document.addEventListener("DOMContentLoaded", initializeApp);
-
+        });
     </script>
 </body>
 </html>
