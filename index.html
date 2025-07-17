@@ -4,57 +4,121 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Adventr Player</title>
-    <!-- This is the official Telegram Mini App script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* Basic CSS to make the player fill the screen */
         body, html {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #000; /* Match the player background */
+            background-color: #000;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
-        /* The smart embed handles its own sizing, but we ensure its container fills the page */
         #adventr-wrapper {
             width: 100%;
             height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #rotate-prompt {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            z-index: 100;
+            flex-direction: column;
+        }
+        #rotate-prompt svg {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
 
-    <!-- 
-      This is your Smart Embed code.
-      We've wrapped it in a div to ensure it's centered and fills the screen if needed,
-      but the inline styles on your embed should handle most of the work.
-    -->
+    <div id="rotate-prompt">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white">
+            <path d="M18.5,6.5H15.5a1,1,0,0,0,0,2H17v1a1,1,0,0,0,2,0V8.5A2,2,0,0,0,17.5,6.5Zm-13,11H8.5a1,1,0,0,0,0-2H7v-1a1,1,0,0,0-2,0v1.5A2,2,0,0,0,6.5,19.5ZM7.88,8.12a1,1,0,0,0-1.41,0L2.29,12.29a1,1,0,0,0,1.41,1.41L7.88,9.54A1,1,0,0,0,7.88,8.12Zm8.24,8.24,4.18-4.17a1,1,0,0,0-1.41-1.41L14.69,15.05a1,1,0,0,0,1.41,1.42Z"/>
+        </svg>
+        Please rotate your device<br>for the best experience.
+    </div>
+
     <div id="adventr-wrapper">
-      <div style="padding-bottom: 56.25%; position: relative; height: 0; overflow: hidden; max-width: 100%;"><iframe src="https://qa-player.adventr.me/stable/index.html?link=5701&custom-score=0" frameborder="0" scrolling="no" referrerpolicy="origin" allowfullscreen allow="autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; geolocation; microphone; web-share" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe></div>
+      <div style="padding-bottom: 56.25%; position: relative; height: 0; overflow: hidden; max-width: 100%; width:100%">
+        <!-- The iframe's 'src' will now be set by our script -->
+        <iframe id="adventr-player" src="" frameborder="0" scrolling="no" referrerpolicy="origin" allowfullscreen allow="autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; geolocation; microphone; web-share" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
+      </div>
     </div>
 
     <script>
+        // --- CONFIGURATION ---
+        const baseAdventrUrl = "https://qa-player.adventr.me/stable/index.html?link=";
+        const defaultVideoId = "5701"; // Fallback video if none is provided
+
         try {
-            // Get the Telegram Web App instance
             const tg = window.Telegram.WebApp;
-
-            // This function runs when the Mini App is ready
             tg.ready();
-
-            // Let Telegram know the app is loaded and expand it to fill the screen
             tg.expand();
+            
+            // --- DYNAMIC VIDEO LOGIC ---
+            // Read the 'start_param' passed when the app is launched.
+            // This is how we get the video ID from the share link.
+            const videoId = tg.initDataUnsafe.start_param || defaultVideoId;
 
-            // Optional: You can still access user data if you need it for analytics
-            const user = tg.initDataUnsafe?.user;
-            if (user) {
-                console.log("Mini App launched by user:", user.id, user.first_name);
+            // Construct the final URL for the player
+            const finalAdventrUrl = `${baseAdventrUrl}${videoId}&custom-score=0`;
+            
+            // Find the iframe and set its source to the URL we just built
+            const playerIframe = document.getElementById('adventr-player');
+            if (playerIframe) {
+                playerIframe.src = finalAdventrUrl;
             }
+
+            // --- Orientation Prompt Logic ---
+            const prompt = document.getElementById('rotate-prompt');
+            const handleOrientationChange = (e) => {
+                if (e.matches) {
+                    prompt.style.display = 'flex'; // Portrait
+                } else {
+                    prompt.style.display = 'none'; // Landscape
+                }
+            };
+            const orientationQuery = window.matchMedia("(orientation: portrait)");
+            handleOrientationChange(orientationQuery);
+            orientationQuery.addEventListener('change', handleOrientationChange);
 
         } catch (error) {
             console.error("Telegram Web App script not found or failed to initialize.", error);
-            // You could show a message here if the page is opened outside of Telegram
         }
     </script>
 </body>
 </html>
+```
+
+**What to do:**
+
+
+The link format is: `https://t.me/AdventrPlayerBot=VIDEO_ID`
+
+**Let's break that down:**
+
+* `https://t.me/AdventrPlayerBot`: This is the standard link to your bot. 
+* `?startapp=VIDEO_ID`: This is the special part. It tells Telegram to launch the Mini App associated with this bot and pass the `VIDEO_ID` as the `start_param`.
+
+**Example:**
+
+Let's say you want to share an Adventr video whose ID is `9876`. Your share link would be:
+
+`https://t.me/AdventrPlayerBot?startapp=9876`
+
+If someone just opens your bot normally and clicks the Menu Button, the app will launch without a `start_param`, and it will play the `defaultVideoId` (`5701`) 
