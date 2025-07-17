@@ -36,16 +36,11 @@
 </head>
 <body>
 
-    <h1>URL Cleaning Diagnostic</h1>
+    <h1>URL Cleaning Diagnostic (v3 - Truly Corrected)</h1>
     <p>This page shows the data received from Telegram and the "cleaned" URL that the player would try to load.</p>
 
     <div id="original-url" class="original">
         <h2>Original URL Received</h2>
-        <p>Loading...</p>
-    </div>
-
-    <div id="start-param" class="info">
-        <h2>Data from `start_param`</h2>
         <p>Loading...</p>
     </div>
 
@@ -70,27 +65,39 @@
                 document.querySelector("#original-url p").textContent = window.location.href;
 
                 // --- Initialize Telegram ---
-                const tg = window.Telegram.WebApp;
-                tg.ready();
-                tg.expand();
-
-                // --- Method 1: Check start_param ---
-                const startParamDiv = document.querySelector("#start-param p");
-                if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
-                    startParamDiv.textContent = `SUCCESS: Found start_param with value: "${tg.initDataUnsafe.start_param}"`;
-                } else {
-                    startParamDiv.textContent = "FAILURE: No start_param data was found.";
+                if (window.Telegram && window.Telegram.WebApp) {
+                    const tg = window.Telegram.WebApp;
+                    tg.ready();
+                    tg.expand();
                 }
 
-                // --- Method 2: Check URL Hash ---
                 const hashParamDiv = document.querySelector("#hash-param p");
                 let videoId = defaultVideoId;
+                
                 if (window.location.hash && window.location.hash.length > 1) {
-                    const hashId = window.location.hash.substring(1);
-                    hashParamDiv.textContent = `SUCCESS: Found hash with value: "${hashId}"`;
-                    videoId = hashId; // Use the hash ID if it exists
+                    let fullHash = window.location.hash.substring(1); // Get everything after #
+                    let extractedId = fullHash;
+
+                    // Check if Telegram's data is present in the hash
+                    if (fullHash.includes('tgWebAppData')) {
+                        // Split the string at the start of Telegram's data and take the first part
+                        extractedId = fullHash.split('tgWebAppData')[0];
+                        // Remove any trailing characters like '&' if they exist
+                        extractedId = extractedId.replace(/&$/, '');
+                    }
+                    
+                    // IMPORTANT CHECK: Only use the extracted ID if it's not empty
+                    if (extractedId) {
+                        videoId = extractedId;
+                        hashParamDiv.textContent = `SUCCESS: Found and cleaned hash. Using extracted ID: "${videoId}"`;
+                    } else {
+                        // This happens when the hash is ONLY Telegram data.
+                        hashParamDiv.textContent = "INFO: Hash contained only Telegram data. Falling back to default ID.";
+                        videoId = defaultVideoId;
+                    }
                 } else {
                     hashParamDiv.textContent = "INFO: No hash found in the URL. Using default ID.";
+                    videoId = defaultVideoId;
                 }
 
                 // --- Construct and Display Cleaned URL ---
