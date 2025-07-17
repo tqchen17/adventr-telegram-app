@@ -3,108 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Adventr Player - Debug</title>
-    <!-- Official Telegram script -->
+    <title>Adventr Player</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body, html {
             margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
+            padding: 0;
             width: 100%;
             height: 100%;
-            overflow: auto;
-            background-color: #111;
-            color: #fff;
-            font-family: monospace;
-            font-size: 14px;
+            overflow: hidden;
+            background-color: #000;
         }
-        .status { color: #00ff00; }
-        .error { color: #ff4444; font-weight: bold; }
-        .info { color: #00ffff; }
-        iframe {
-            position: fixed;
+        #adventr-wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .aspect-ratio-container {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 56.25%; /* 9 / 16 = 0.5625 */
+            max-width: 100%;
+            background-color: #000;
+        }
+        .aspect-ratio-container iframe {
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             border: none;
-            z-index: 100;
-            background-color: #000;
         }
     </style>
 </head>
 <body>
-
-    <h1>Adventr Mini App Debugger</h1>
-    <div id="debug-log">
-        <p>Initializing...</p>
+    <div id="adventr-wrapper">
+      <div class="aspect-ratio-container">
+        <iframe id="adventr-player" src="" allowfullscreen allow="autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; geolocation; microphone; web-share"></iframe>
+      </div>
     </div>
-    <div id="player-container"></div>
 
     <script>
-        const log = (message, type = 'info') => {
-            const logDiv = document.getElementById('debug-log');
-            if (logDiv) {
-                logDiv.innerHTML += `<p class="${type}">- ${message}</p>`;
-            }
-            if (type === 'error') console.error(message);
-            else console.log(message);
-        };
+        // We wrap the entire script in a try-catch block as a last line of defense.
+        try {
+            document.addEventListener("DOMContentLoaded", () => {
+                try {
+                    // --- CONFIGURATION ---
+                    const baseAdventrUrl = "https://qa-player.adventr.me/stable/index.html?link=";
+                    const defaultVideoId = "5701";
 
-        document.addEventListener("DOMContentLoaded", () => {
-            log('DOM content loaded.', 'status');
-            try {
-                // --- CONFIGURATION ---
-                const baseAdventrUrl = "https://qa-player.adventr.me/stable/index.html?link=";
-                const defaultVideoId = "5701";
-                log(`Base URL: ${baseAdventrUrl}`, 'info');
-                log(`Default Video ID: ${defaultVideoId}`, 'info');
+                    // --- INITIALIZE TELEGRAM APP ---
+                    if (!window.Telegram || !window.Telegram.WebApp) {
+                        console.error("Telegram.WebApp object not found.");
+                        return; // Stop execution if Telegram object isn't there
+                    }
+                    const tg = window.Telegram.WebApp;
+                    tg.ready();
+                    tg.expand();
 
-                // --- INITIALIZE TELEGRAM APP ---
-                if (!window.Telegram || !window.Telegram.WebApp) {
-                    throw new Error("Telegram.WebApp object not found. Is this running outside of Telegram?");
+                    // --- DYNAMIC VIDEO LOGIC ---
+                    let videoId = defaultVideoId;
+                    if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+                        videoId = tg.initDataUnsafe.start_param;
+                    }
+                    
+                    const finalAdventrUrl = `${baseAdventrUrl}${videoId}&custom-score=0`;
+                    
+                    const playerIframe = document.getElementById('adventr-player');
+                    if(playerIframe) {
+                        playerIframe.src = finalAdventrUrl;
+                    }
+
+                } catch (e) {
+                    console.error("Inner App Error:", e.message);
                 }
-                log('Telegram.WebApp object found.', 'status');
-
-                const tg = window.Telegram.WebApp;
-                tg.ready();
-                log('tg.ready() called.', 'status');
-                tg.expand();
-                log('tg.expand() called.', 'status');
-
-                // --- DYNAMIC VIDEO LOGIC ---
-                let videoId = defaultVideoId;
-                if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
-                    videoId = tg.initDataUnsafe.start_param;
-                    log(`Success! Found start_param: ${videoId}`, 'status');
-                } else {
-                    log('No start_param found. Using default video ID.', 'info');
-                }
-                
-                const finalAdventrUrl = `${baseAdventrUrl}${videoId}&custom-score=0`;
-                log(`Final player URL: ${finalAdventrUrl}`, 'info');
-
-                // --- IFRAME CREATION ---
-                log('Creating iframe...');
-                const playerContainer = document.getElementById('player-container');
-                playerContainer.innerHTML = `<iframe src="${finalAdventrUrl}" allowfullscreen allow="autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; geolocation; microphone; web-share"></iframe>`;
-                log('Iframe injected. Player should be visible.', 'status');
-                
-                // Hide the debug log after 3 seconds if everything was successful
-                setTimeout(() => {
-                    const debugContainer = document.querySelector('#debug-log');
-                    const header = document.querySelector('h1');
-                    if(debugContainer) debugContainer.style.display = 'none';
-                    if(header) header.style.display = 'none';
-                }, 3000);
-
-
-            } catch (e) {
-                // Catch any error and display it prominently
-                log(`CRITICAL ERROR: ${e.message}`, 'error');
-            }
-        });
+            });
+        } catch (e) {
+            console.error("Outer Script Error:", e.message);
+        }
     </script>
 </body>
 </html>
