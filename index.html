@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Adventr Player</title>
+    <!-- Official Telegram script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body, html {
@@ -13,6 +14,8 @@
             height: 100%;
             overflow: hidden;
             background-color: #000;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
         #adventr-wrapper {
             width: 100%;
@@ -37,9 +40,51 @@
             height: 100%;
             border: none;
         }
+        /* --- Styles for the dismissible rotation prompt --- */
+        #rotate-prompt {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            z-index: 100;
+            flex-direction: column;
+        }
+        #rotate-prompt svg {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 20px;
+        }
+        #close-prompt {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 30px;
+            line-height: 1;
+            cursor: pointer;
+            color: #aaa;
+            transition: color 0.2s;
+        }
+        #close-prompt:hover {
+            color: #fff;
+        }
     </style>
 </head>
 <body>
+
+    <!-- Rotation prompt -->
+    <div id="rotate-prompt">
+        <div id="close-prompt">&times;</div>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white">
+            <path d="M18.5,6.5H15.5a1,1,0,0,0,0,2H17v1a1,1,0,0,0,2,0V8.5A2,2,0,0,0,17.5,6.5Zm-13,11H8.5a1,1,0,0,0,0-2H7v-1a1,1,0,0,0-2,0v1.5A2,2,0,0,0,6.5,19.5ZM7.88,8.12a1,1,0,0,0-1.41,0L2.29,12.29a1,1,0,0,0,1.41,1.41L7.88,9.54A1,1,0,0,0,7.88,8.12Zm8.24,8.24,4.18-4.17a1,1,0,0,0-1.41-1.41L14.69,15.05a1,1,0,0,0,1.41,1.42Z"/>
+        </svg>
+        For the best experience,<br>please rotate your device.
+    </div>
 
     <div id="adventr-wrapper">
       <div class="aspect-ratio-container">
@@ -55,19 +100,20 @@
                 const defaultVideoId = "5701"; // Fallback for the menu button
 
                 // --- INITIALIZE TELEGRAM APP ---
-                // We still do this to get the native feel (expand, etc.)
                 if (window.Telegram && window.Telegram.WebApp) {
                     const tg = window.Telegram.WebApp;
                     tg.ready();
                     tg.expand();
                 }
 
-                // --- NEW DYNAMIC VIDEO LOGIC (using URL Hash) ---
+                // --- DYNAMIC VIDEO LOGIC (using URL Hash) ---
                 let videoId = defaultVideoId;
                 
                 // Check the URL for a hash (#) and extract the ID
-                if (window.location.hash) {
+                if (window.location.hash && window.location.hash.length > 1) {
+                    // .substring(1) removes the '#' character
                     const hashId = window.location.hash.substring(1);
+                    // Ensure the extracted ID is not empty
                     if (hashId) {
                         videoId = hashId;
                     }
@@ -80,9 +126,25 @@
                     playerIframe.src = finalAdventrUrl;
                 }
 
+                // --- ROTATION PROMPT LOGIC ---
+                const prompt = document.getElementById('rotate-prompt');
+                const closeButton = document.getElementById('close-prompt');
+                const handleOrientationChange = (e) => {
+                    if (e.matches && prompt.style.display !== 'none') {
+                        prompt.style.display = 'flex';
+                    } else {
+                        prompt.style.display = 'none';
+                    }
+                };
+                closeButton.addEventListener('click', () => {
+                    prompt.style.display = 'none';
+                });
+                const orientationQuery = window.matchMedia("(orientation: portrait)");
+                handleOrientationChange(orientationQuery);
+                orientationQuery.addEventListener('change', handleOrientationChange);
+
             } catch (e) {
                 console.error("App Error:", e.message);
-                // You could display an error to the user here if needed
             }
         });
     </script>
