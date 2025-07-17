@@ -23,7 +23,21 @@
             align-items: center;
             justify-content: center;
         }
-        /* --- Styles for the new, dismissible prompt --- */
+        .aspect-ratio-container {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 56.25%; /* 9 / 16 = 0.5625 */
+            max-width: 100%;
+        }
+        .aspect-ratio-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
         #rotate-prompt {
             position: absolute;
             top: 0;
@@ -31,7 +45,7 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0, 0, 0, 0.9);
-            display: none; /* Hidden by default */
+            display: none;
             align-items: center;
             justify-content: center;
             text-align: center;
@@ -43,7 +57,6 @@
             height: 60px;
             margin-bottom: 20px;
         }
-        /* The new close button */
         #close-prompt {
             position: absolute;
             top: 20px;
@@ -60,8 +73,6 @@
     </style>
 </head>
 <body>
-
-    <!-- Updated prompt with a close button -->
     <div id="rotate-prompt">
         <div id="close-prompt">&times;</div>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white">
@@ -71,75 +82,53 @@
     </div>
 
     <div id="adventr-wrapper">
-      <div style="padding-bottom: 56.25%; position: relative; height: 0; overflow: hidden; max-width: 100%; width:100%">
-        <iframe id="adventr-player" src="" frameborder="0" scrolling="no" referrerpolicy="origin" allowfullscreen allow="autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; geolocation; microphone; web-share" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
+      <div class="aspect-ratio-container">
+        <iframe id="adventr-player" src="" allowfullscreen allow="autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; geolocation; microphone; web-share"></iframe>
       </div>
     </div>
 
     <script>
-        // --- CONFIGURATION ---
-        const baseAdventrUrl = "https://qa-player.adventr.me/stable/index.html?link=";
-        const defaultVideoId = "5701"; // Fallback video if none is provided
-
-        // We wrap our main logic in a function to call it when ready
-        function initializeApp() {
+        document.addEventListener("DOMContentLoaded", () => {
             try {
-                // Ensure the Telegram Web App object is available
-                if (!window.Telegram || !window.Telegram.WebApp) {
-                    console.error("Telegram Web App script not ready");
-                    // Optionally, show an error to the user here
-                    return;
-                }
+                // --- CONFIGURATION ---
+                const baseAdventrUrl = "https://qa-player.adventr.me/stable/index.html?link=";
+                const defaultVideoId = "5701";
 
+                // --- INITIALIZE TELEGRAM APP ---
                 const tg = window.Telegram.WebApp;
                 tg.ready();
                 tg.expand();
-                
-                // --- DYNAMIC VIDEO LOGIC (More Robust) ---
+
+                // --- DYNAMIC VIDEO LOGIC ---
                 let videoId = defaultVideoId;
-                // Safely check for initDataUnsafe and start_param
                 if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
                     videoId = tg.initDataUnsafe.start_param;
-                    console.log("Received start_param:", videoId);
-                } else {
-                    console.log("No start_param found, using default:", defaultVideoId);
                 }
-
                 const finalAdventrUrl = `${baseAdventrUrl}${videoId}&custom-score=0`;
-                const playerIframe = document.getElementById('adventr-player');
-                if (playerIframe) {
-                    playerIframe.src = finalAdventrUrl;
-                }
+                document.getElementById('adventr-player').src = finalAdventrUrl;
 
-                // --- ROTATION PROMPT LOGIC (Now dismissible) ---
+                // --- ROTATION PROMPT LOGIC ---
                 const prompt = document.getElementById('rotate-prompt');
                 const closeButton = document.getElementById('close-prompt');
-                
                 const handleOrientationChange = (e) => {
-                    // Only show the prompt if it hasn't been closed this session
-                    if (e.matches && prompt.style.display !== 'closed') {
-                        prompt.style.display = 'flex'; // Portrait
+                    if (e.matches && prompt.style.display !== 'none') {
+                        prompt.style.display = 'flex';
                     } else {
-                        prompt.style.display = 'none'; // Landscape
+                        prompt.style.display = 'none';
                     }
                 };
-
                 closeButton.addEventListener('click', () => {
                     prompt.style.display = 'none';
                 });
-
                 const orientationQuery = window.matchMedia("(orientation: portrait)");
                 handleOrientationChange(orientationQuery);
                 orientationQuery.addEventListener('change', handleOrientationChange);
 
-            } catch (error) {
-                console.error("An error occurred during app initialization:", error);
+            } catch (e) {
+                document.body.innerHTML = `<p style="color:red; padding: 20px;"><b>An error occurred:</b><br>${e.message}</p>`;
+                console.error("Mini App Error:", e);
             }
-        }
-
-        // Wait for the DOM to be fully loaded before running the app logic
-        document.addEventListener("DOMContentLoaded", initializeApp);
-
+        });
     </script>
 </body>
 </html>
