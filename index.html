@@ -25,7 +25,7 @@
             position: relative;
             width: 100%;
             height: 0;
-            padding-bottom: 56.25%; /* 9 / 16 = 0.5625 */
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
             max-width: 100%;
             background-color: #000;
         }
@@ -40,6 +40,7 @@
     </style>
 </head>
 <body>
+
     <div id="adventr-wrapper">
       <div class="aspect-ratio-container">
         <iframe id="adventr-player" src="" allowfullscreen allow="autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; geolocation; microphone; web-share"></iframe>
@@ -47,43 +48,43 @@
     </div>
 
     <script>
-        // We wrap the entire script in a try-catch block as a last line of defense.
-        try {
-            document.addEventListener("DOMContentLoaded", () => {
-                try {
-                    // --- CONFIGURATION ---
-                    const baseAdventrUrl = "https://qa-player.adventr.me/stable/index.html?link=";
-                    const defaultVideoId = "5701";
+        document.addEventListener("DOMContentLoaded", () => {
+            try {
+                // --- CONFIGURATION ---
+                const baseAdventrUrl = "https://qa-player.adventr.me/stable/index.html?link=";
+                const defaultVideoId = "5701"; // Fallback for the menu button
 
-                    // --- INITIALIZE TELEGRAM APP ---
-                    if (!window.Telegram || !window.Telegram.WebApp) {
-                        console.error("Telegram.WebApp object not found.");
-                        return; // Stop execution if Telegram object isn't there
-                    }
+                // --- INITIALIZE TELEGRAM APP ---
+                // We still do this to get the native feel (expand, etc.)
+                if (window.Telegram && window.Telegram.WebApp) {
                     const tg = window.Telegram.WebApp;
                     tg.ready();
                     tg.expand();
-
-                    // --- DYNAMIC VIDEO LOGIC ---
-                    let videoId = defaultVideoId;
-                    if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
-                        videoId = tg.initDataUnsafe.start_param;
-                    }
-                    
-                    const finalAdventrUrl = `${baseAdventrUrl}${videoId}&custom-score=0`;
-                    
-                    const playerIframe = document.getElementById('adventr-player');
-                    if(playerIframe) {
-                        playerIframe.src = finalAdventrUrl;
-                    }
-
-                } catch (e) {
-                    console.error("Inner App Error:", e.message);
                 }
-            });
-        } catch (e) {
-            console.error("Outer Script Error:", e.message);
-        }
+
+                // --- NEW DYNAMIC VIDEO LOGIC (using URL Hash) ---
+                let videoId = defaultVideoId;
+                
+                // Check the URL for a hash (#) and extract the ID
+                if (window.location.hash) {
+                    const hashId = window.location.hash.substring(1);
+                    if (hashId) {
+                        videoId = hashId;
+                    }
+                }
+                
+                const finalAdventrUrl = `${baseAdventrUrl}${videoId}&custom-score=0`;
+                
+                const playerIframe = document.getElementById('adventr-player');
+                if(playerIframe) {
+                    playerIframe.src = finalAdventrUrl;
+                }
+
+            } catch (e) {
+                console.error("App Error:", e.message);
+                // You could display an error to the user here if needed
+            }
+        });
     </script>
 </body>
 </html>
