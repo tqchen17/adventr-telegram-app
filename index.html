@@ -13,6 +13,8 @@
             height: 100%;
             overflow: hidden;
             background-color: #000;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
         #adventr-wrapper {
             width: 100%;
@@ -54,52 +56,42 @@
                 const baseAdventrUrl = "https://qa-player.adventr.me/stable/index.html?link=";
                 const defaultVideoId = "5729"; // A known working ID
 
-                // --- ROBUST PLAYER LOADING LOGIC ---
-                const loadPlayer = (videoId) => {
-                    // Final check to ensure the ID is just a simple string of numbers
-                    const sanitizedId = String(videoId).match(/^\d+$/) ? videoId : defaultVideoId;
-                    const finalAdventrUrl = `${baseAdventrUrl}${sanitizedId}&custom-score=0`;
-                    
-                    const playerIframe = document.getElementById('adventr-player');
-                    if(playerIframe) {
-                        playerIframe.src = finalAdventrUrl;
-                    }
-                };
-
-                // --- INITIALIZE TELEGRAM APP & WAIT FOR DATA ---
+                // --- INITIALIZE TELEGRAM APP ---
                 if (window.Telegram && window.Telegram.WebApp) {
                     const tg = window.Telegram.WebApp;
                     tg.ready();
                     tg.expand();
+                }
 
-                    // This function attempts to get the start_param
-                    const getStartParam = () => {
-                        if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
-                            loadPlayer(tg.initDataUnsafe.start_param);
-                        } else {
-                            // If data is still not there, load the default.
-                            loadPlayer(defaultVideoId);
-                        }
-                    };
+                // --- CORRECTED HASH PARSING LOGIC ---
+                let videoId = defaultVideoId;
+                
+                if (window.location.hash && window.location.hash.length > 1) {
+                    let fullHash = window.location.hash.substring(1); // Get everything after #
+                    let extractedId = fullHash;
 
-                    // Check immediately, but also set a timeout as a fallback for slow clients.
-                    if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
-                         getStartParam();
-                    } else {
-                        setTimeout(getStartParam, 500); // Wait up to 500ms
+                    // Check if Telegram's data is present in the hash and clean it
+                    if (fullHash.includes('tgWebAppData')) {
+                        extractedId = fullHash.split('tgWebAppData')[0].replace(/&$/, '');
                     }
-                } else {
-                    // If not in Telegram, load the default video.
-                    loadPlayer(defaultVideoId);
+                    
+                    // Only use the extracted ID if it's not empty
+                    if (extractedId) {
+                        videoId = extractedId;
+                    }
+                }
+                
+                // --- Construct and Load Player ---
+                const finalAdventrUrl = `${baseAdventrUrl}${videoId}&custom-score=0`;
+                const playerIframe = document.getElementById('adventr-player');
+                if(playerIframe) {
+                    playerIframe.src = finalAdventrUrl;
                 }
 
             } catch (e) {
+                // Fallback in case of a critical error
                 console.error("App Error:", e.message);
-                // Fallback in case of any unexpected error
-                const playerIframe = document.getElementById('adventr-player');
-                if(playerIframe) {
-                    playerIframe.src = `${baseAdventrUrl}${defaultVideoId}&custom-score=0`;
-                }
+                document.body.innerHTML = `<h2 style="color:red; text-align:center; padding: 20px;">A critical error occurred.</h2>`;
             }
         });
     </script>
