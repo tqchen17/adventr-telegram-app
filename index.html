@@ -85,24 +85,22 @@
         function initializeApp() {
             try {
                 // Ensure the Telegram Web App object is available
-                if (!window.Telegram || !window.Telegram.WebApp) {
-                    console.error("Telegram Web App script not ready");
-                    // Optionally, show an error to the user here
-                    return;
+                if (window.Telegram && window.Telegram.WebApp) {
+                    const tg = window.Telegram.WebApp;
+                    tg.ready();
+                    tg.expand();
                 }
-
-                const tg = window.Telegram.WebApp;
-                tg.ready();
-                tg.expand();
                 
-                // --- DYNAMIC VIDEO LOGIC (More Robust) ---
+                // --- DYNAMIC VIDEO LOGIC (URL HASH METHOD) ---
                 let videoId = defaultVideoId;
-                // Safely check for initDataUnsafe and start_param
-                if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
-                    videoId = tg.initDataUnsafe.start_param;
-                    console.log("Received start_param:", videoId);
-                } else {
-                    console.log("No start_param found, using default:", defaultVideoId);
+                // Check the URL for a hash (#) and extract the ID
+                if (window.location.hash && window.location.hash.length > 1) {
+                    // .substring(1) removes the '#' character
+                    const hashId = window.location.hash.substring(1);
+                    // Ensure the extracted ID is not empty
+                    if (hashId) {
+                        videoId = hashId;
+                    }
                 }
 
                 const finalAdventrUrl = `${baseAdventrUrl}${videoId}&custom-score=0`;
