@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Adventr Player</title>
-    <!-- Official Telegram script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body, html {
@@ -14,6 +13,8 @@
             height: 100%;
             overflow: hidden;
             background-color: #000;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
         #adventr-wrapper {
             width: 100%;
@@ -22,25 +23,123 @@
             align-items: center;
             justify-content: center;
         }
+        /* --- Styles for the new, dismissible prompt --- */
+        #rotate-prompt {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: none; /* Hidden by default */
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            z-index: 100;
+            flex-direction: column;
+        }
+        #rotate-prompt svg {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 20px;
+        }
+        /* The new close button */
+        #close-prompt {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 30px;
+            line-height: 1;
+            cursor: pointer;
+            color: #aaa;
+            transition: color 0.2s;
+        }
+        #close-prompt:hover {
+            color: #fff;
+        }
     </style>
 </head>
 <body>
+
+    <!-- Updated prompt with a close button -->
+    <div id="rotate-prompt">
+        <div id="close-prompt">&times;</div>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white">
+            <path d="M18.5,6.5H15.5a1,1,0,0,0,0,2H17v1a1,1,0,0,0,2,0V8.5A2,2,0,0,0,17.5,6.5Zm-13,11H8.5a1,1,0,0,0,0-2H7v-1a1,1,0,0,0-2,0v1.5A2,2,0,0,0,6.5,19.5ZM7.88,8.12a1,1,0,0,0-1.41,0L2.29,12.29a1,1,0,0,0,1.41,1.41L7.88,9.54A1,1,0,0,0,7.88,8.12Zm8.24,8.24,4.18-4.17a1,1,0,0,0-1.41-1.41L14.69,15.05a1,1,0,0,0,1.41,1.42Z"/>
+        </svg>
+        For the best experience,<br>please rotate your device.
+    </div>
+
     <div id="adventr-wrapper">
-      <div style="padding-bottom: 56.25%; position: relative; height: 0; overflow: hidden; max-width: 100%; width: 100%;">
-        <iframe src="https://qa-player.adventr.me/stable/index.html?link=5701&custom-score=0" frameborder="0" scrolling="no" referrerpolicy="origin" allowfullscreen allow="autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; geolocation; microphone; web-share" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
+      <div style="padding-bottom: 56.25%; position: relative; height: 0; overflow: hidden; max-width: 100%; width:100%">
+        <iframe id="adventr-player" src="" frameborder="0" scrolling="no" referrerpolicy="origin" allowfullscreen allow="autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; geolocation; microphone; web-share" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
       </div>
     </div>
 
     <script>
-        try {
-            if (window.Telegram && window.Telegram.WebApp) {
+        // --- CONFIGURATION ---
+        const baseAdventrUrl = "https://qa-player.adventr.me/stable/index.html?link=";
+        const defaultVideoId = "5701"; // Fallback video if none is provided
+
+        // We wrap our main logic in a function to call it when ready
+        function initializeApp() {
+            try {
+                // Ensure the Telegram Web App object is available
+                if (!window.Telegram || !window.Telegram.WebApp) {
+                    console.error("Telegram Web App script not ready");
+                    // Optionally, show an error to the user here
+                    return;
+                }
+
                 const tg = window.Telegram.WebApp;
                 tg.ready();
                 tg.expand();
+                
+                // --- DYNAMIC VIDEO LOGIC (More Robust) ---
+                let videoId = defaultVideoId;
+                // Safely check for initDataUnsafe and start_param
+                if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+                    videoId = tg.initDataUnsafe.start_param;
+                    console.log("Received start_param:", videoId);
+                } else {
+                    console.log("No start_param found, using default:", defaultVideoId);
+                }
+
+                const finalAdventrUrl = `${baseAdventrUrl}${videoId}&custom-score=0`;
+                const playerIframe = document.getElementById('adventr-player');
+                if (playerIframe) {
+                    playerIframe.src = finalAdventrUrl;
+                }
+
+                // --- ROTATION PROMPT LOGIC (Now dismissible) ---
+                const prompt = document.getElementById('rotate-prompt');
+                const closeButton = document.getElementById('close-prompt');
+                
+                const handleOrientationChange = (e) => {
+                    // Only show the prompt if it hasn't been closed this session
+                    if (e.matches && prompt.style.display !== 'closed') {
+                        prompt.style.display = 'flex'; // Portrait
+                    } else {
+                        prompt.style.display = 'none'; // Landscape
+                    }
+                };
+
+                closeButton.addEventListener('click', () => {
+                    prompt.style.display = 'none';
+                });
+
+                const orientationQuery = window.matchMedia("(orientation: portrait)");
+                handleOrientationChange(orientationQuery);
+                orientationQuery.addEventListener('change', handleOrientationChange);
+
+            } catch (error) {
+                console.error("An error occurred during app initialization:", error);
             }
-        } catch (e) {
-            console.error("Telegram script failed, but the player should still load.", e);
         }
+
+        // Wait for the DOM to be fully loaded before running the app logic
+        document.addEventListener("DOMContentLoaded", initializeApp);
+
     </script>
 </body>
 </html>
