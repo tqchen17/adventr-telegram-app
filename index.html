@@ -3,55 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>URL Diagnostic Tool</title>
+    <title>Adventr Player</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body, html {
             margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
+            padding: 0;
             width: 100%;
             height: 100%;
-            overflow: auto;
-            background-color: #222;
-            color: #fff;
-            font-family: monospace;
-            font-size: 14px;
+            overflow: hidden;
+            background-color: #000;
         }
-        div {
-            margin-bottom: 20px;
-            padding: 15px;
-            border-radius: 8px;
-            word-break: break-all;
+        #adventr-wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        h2 {
-            margin-top: 0;
-            border-bottom: 1px solid #555;
-            padding-bottom: 5px;
+        .aspect-ratio-container {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            max-width: 100%;
+            background-color: #000;
         }
-        .original { background-color: #442b2b; }
-        .cleaned { background-color: #2b442b; }
-        .info { background-color: #2b3a44; }
+        .aspect-ratio-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
     </style>
 </head>
 <body>
 
-    <h1>URL Cleaning Diagnostic (v3 - Truly Corrected)</h1>
-    <p>This page shows the data received from Telegram and the "cleaned" URL that the player would try to load.</p>
-
-    <div id="original-url" class="original">
-        <h2>Original URL Received</h2>
-        <p>Loading...</p>
-    </div>
-
-    <div id="hash-param" class="info">
-        <h2>Data from URL Hash (#)</h2>
-        <p>Loading...</p>
-    </div>
-
-    <div id="cleaned-url" class="cleaned">
-        <h2>Final Cleaned URL</h2>
-        <p>Loading...</p>
+    <div id="adventr-wrapper">
+      <div class="aspect-ratio-container">
+        <iframe id="adventr-player" src="" allowfullscreen allow="autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; geolocation; microphone; web-share"></iframe>
+      </div>
     </div>
 
     <script>
@@ -61,51 +54,52 @@
                 const baseAdventrUrl = "https://qa-player.adventr.me/stable/index.html?link=";
                 const defaultVideoId = "5729"; // A known working ID
 
-                // --- Display Original URL ---
-                document.querySelector("#original-url p").textContent = window.location.href;
+                // --- ROBUST PLAYER LOADING LOGIC ---
+                const loadPlayer = (videoId) => {
+                    // Final check to ensure the ID is just a simple string of numbers
+                    const sanitizedId = String(videoId).match(/^\d+$/) ? videoId : defaultVideoId;
+                    const finalAdventrUrl = `${baseAdventrUrl}${sanitizedId}&custom-score=0`;
+                    
+                    const playerIframe = document.getElementById('adventr-player');
+                    if(playerIframe) {
+                        playerIframe.src = finalAdventrUrl;
+                    }
+                };
 
-                // --- Initialize Telegram ---
+                // --- INITIALIZE TELEGRAM APP & WAIT FOR DATA ---
                 if (window.Telegram && window.Telegram.WebApp) {
                     const tg = window.Telegram.WebApp;
                     tg.ready();
                     tg.expand();
-                }
 
-                const hashParamDiv = document.querySelector("#hash-param p");
-                let videoId = defaultVideoId;
-                
-                if (window.location.hash && window.location.hash.length > 1) {
-                    let fullHash = window.location.hash.substring(1); // Get everything after #
-                    let extractedId = fullHash;
+                    // This function attempts to get the start_param
+                    const getStartParam = () => {
+                        if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+                            loadPlayer(tg.initDataUnsafe.start_param);
+                        } else {
+                            // If data is still not there, load the default.
+                            loadPlayer(defaultVideoId);
+                        }
+                    };
 
-                    // Check if Telegram's data is present in the hash
-                    if (fullHash.includes('tgWebAppData')) {
-                        // Split the string at the start of Telegram's data and take the first part
-                        extractedId = fullHash.split('tgWebAppData')[0];
-                        // Remove any trailing characters like '&' if they exist
-                        extractedId = extractedId.replace(/&$/, '');
-                    }
-                    
-                    // IMPORTANT CHECK: Only use the extracted ID if it's not empty
-                    if (extractedId) {
-                        videoId = extractedId;
-                        hashParamDiv.textContent = `SUCCESS: Found and cleaned hash. Using extracted ID: "${videoId}"`;
+                    // Check immediately, but also set a timeout as a fallback for slow clients.
+                    if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+                         getStartParam();
                     } else {
-                        // This happens when the hash is ONLY Telegram data.
-                        hashParamDiv.textContent = "INFO: Hash contained only Telegram data. Falling back to default ID.";
-                        videoId = defaultVideoId;
+                        setTimeout(getStartParam, 500); // Wait up to 500ms
                     }
                 } else {
-                    hashParamDiv.textContent = "INFO: No hash found in the URL. Using default ID.";
-                    videoId = defaultVideoId;
+                    // If not in Telegram, load the default video.
+                    loadPlayer(defaultVideoId);
                 }
 
-                // --- Construct and Display Cleaned URL ---
-                const finalAdventrUrl = `${baseAdventrUrl}${videoId}&custom-score=0`;
-                document.querySelector("#cleaned-url p").textContent = finalAdventrUrl;
-
             } catch (e) {
-                document.body.innerHTML = `<h1 style="color:red;">A critical error occurred: ${e.message}</h1>`;
+                console.error("App Error:", e.message);
+                // Fallback in case of any unexpected error
+                const playerIframe = document.getElementById('adventr-player');
+                if(playerIframe) {
+                    playerIframe.src = `${baseAdventrUrl}${defaultVideoId}&custom-score=0`;
+                }
             }
         });
     </script>
