@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>start_param Tester</title>
+    <title>Adventr Player</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body, html {
@@ -11,74 +11,95 @@
             padding: 0;
             width: 100%;
             height: 100%;
+            overflow: hidden;
+            background-color: #000;
+        }
+        #adventr-wrapper {
+            width: 100%;
+            height: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
-            text-align: center;
-            background-color: #333;
-            color: #fff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            font-size: 18px;
         }
-        #container {
-            padding: 30px;
-            border-radius: 12px;
-            background-color: #444;
-            max-width: 90%;
+        .aspect-ratio-container {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            max-width: 100%;
+            background-color: #000;
         }
-        h1 {
-            margin-top: 0;
-            font-size: 24px;
-            color: #eee;
-            border-bottom: 1px solid #666;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }
-        #result {
-            font-family: monospace;
-            font-size: 20px;
-            font-weight: bold;
-            color: #00ffaa;
-            word-break: break-all;
-            background-color: #222;
-            padding: 15px;
-            border-radius: 8px;
-        }
-        .not-found {
-            color: #ff5555 !important;
+        .aspect-ratio-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
         }
     </style>
 </head>
 <body>
 
-    <div id="container">
-        <h1>Received `start_param` Value:</h1>
-        <div id="result">Waiting for data from Telegram...</div>
+    <div id="adventr-wrapper">
+      <div class="aspect-ratio-container">
+        <iframe id="adventr-player" src="" allowfullscreen allow="autoplay; fullscreen; clipboard-read; clipboard-write; encrypted-media; geolocation; microphone; web-share"></iframe>
+      </div>
     </div>
 
     <script>
-        // This is the simplest possible implementation to avoid any other potential errors.
-        function displayResult() {
+        document.addEventListener("DOMContentLoaded", () => {
             try {
-                const tg = window.Telegram.WebApp;
-                const resultDiv = document.getElementById('result');
-                
-                if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
-                    resultDiv.textContent = tg.initDataUnsafe.start_param;
+                // --- CONFIGURATION ---
+                const baseAdventrUrl = "https://qa-player.adventr.me/stable/index.html?link=";
+                const defaultVideoId = "5729"; // A known working ID
+
+                // --- ROBUST PLAYER LOADING LOGIC ---
+                const loadPlayer = (videoId) => {
+                    // Sanitize the ID to ensure it's just numbers, otherwise use the default.
+                    const sanitizedId = String(videoId).match(/^\d+$/) ? videoId : defaultVideoId;
+                    const finalAdventrUrl = `${baseAdventrUrl}${sanitizedId}&custom-score=0`;
+                    
+                    const playerIframe = document.getElementById('adventr-player');
+                    if(playerIframe) {
+                        playerIframe.src = finalAdventrUrl;
+                    }
+                };
+
+                // --- INITIALIZE TELEGRAM APP & WAIT FOR DATA ---
+                if (window.Telegram && window.Telegram.WebApp) {
+                    const tg = window.Telegram.WebApp;
+                    tg.ready();
+                    tg.expand();
+
+                    const getStartParam = () => {
+                        if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+                            loadPlayer(tg.initDataUnsafe.start_param);
+                        } else {
+                            loadPlayer(defaultVideoId);
+                        }
+                    };
+
+                    // Check immediately, but also set a timeout as a fallback for slow clients.
+                    if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+                         getStartParam();
+                    } else {
+                        setTimeout(getStartParam, 300); // Wait up to 300ms
+                    }
                 } else {
-                    resultDiv.textContent = "No start_param value was found.";
-                    resultDiv.classList.add('not-found');
+                    // If not in Telegram, load the default video.
+                    loadPlayer(defaultVideoId);
                 }
+
             } catch (e) {
-                const resultDiv = document.getElementById('result');
-                resultDiv.textContent = `A critical error occurred: ${e.message}`;
-                resultDiv.classList.add('not-found');
+                console.error("App Error:", e.message);
+                // Fallback in case of any unexpected error
+                const playerIframe = document.getElementById('adventr-player');
+                if(playerIframe) {
+                    playerIframe.src = `${baseAdventrUrl}${defaultVideoId}&custom-score=0`;
+                }
             }
-        }
-
-        // Wait a moment for the Telegram script to initialize and populate data.
-        setTimeout(displayResult, 500);
-
+        });
     </script>
 </body>
 </html>
